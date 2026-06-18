@@ -448,7 +448,9 @@
   function idbGet(k){return idbOpen().then(function(db){return new Promise(function(res,rej){var tx=db.transaction("m","readonly");var q=tx.objectStore("m").get(k);q.onsuccess=function(){res(q.result||null);};q.onerror=function(){rej(q.error);};});});}
   function idbDel(k){return idbOpen().then(function(db){return new Promise(function(res){var tx=db.transaction("m","readwrite");tx.objectStore("m").delete(k);tx.oncomplete=res;tx.onerror=res;});});}
 
-  function allItems(){ return ITEMS.concat(customCourses); }
+  var repoCourses=[];
+  function normRepoCourse(c){var col=CAT_COLORS[c.cat]||["#DDE9D5","#C6D9C9"];return {id:c.id||("r_"+(c.file||c.n||Math.random())),n:c.n||"未命名",type:"audio",cat:c.cat||"正念觉察",meta:(c.min||10)+" 分钟 · "+(c.cat||"正念觉察"),c1:col[0],c2:col[1],desc:c.desc||"你在 GitHub 里定义的练习。",file:c.file||"",repo:true};}
+  function allItems(){ var seen={},out=[]; ITEMS.concat(repoCourses).concat(customCourses).forEach(function(it){ if(!seen[it.id]){seen[it.id]=1;out.push(it);} }); return out; }
   function itemById(id){ var a=allItems(); for(var i=0;i<a.length;i++) if(a[i].id===id) return a[i]; for(var j=0;j<SYS_COURSES.length;j++) if(SYS_COURSES[j].id===id) return SYS_COURSES[j]; return null; }
   function quadByKey(k){ for(var i=0;i<QUADS.length;i++) if(QUADS[i].key===k) return QUADS[i]; return QUADS[2]; }
   function hexToRgb(hex){hex=hex.replace('#','');return [parseInt(hex.substr(0,2),16),parseInt(hex.substr(2,2),16),parseInt(hex.substr(4,2),16)];}
@@ -846,7 +848,7 @@
     function play(src){a.src=src;var p=a.play();if(p&&p.catch)p.catch(function(){});}
     if(mediaidx[it.id]==="audio"){ idbGet("media_"+it.id).then(function(r){if(r){play(URL.createObjectURL(r.blob));}else tryA();}).catch(tryA); }
     else tryA();
-    function tryA(){ var bs=[],cu=it.id.charAt(0)==="u"; if(cu){if(it.file)bs.push(it.file);if(it.n)bs.push(encodeURIComponent(it.n));} bs.push(it.id); var srcs=bs.map(function(b){return av("assets/"+b+".mp3");}),i=0; a.onerror=function(){i++;if(i<srcs.length)play(srcs[i]);else a.onerror=null;}; if(srcs.length)play(srcs[0]); }
+    function tryA(){ var bs=[],cu=it.id.charAt(0)==="u"; if(cu){if(it.file)bs.push(it.file);if(it.n)bs.push(encodeURIComponent(it.n));} bs.push(it.id); var srcs=[]; bs.forEach(function(b){srcs.push(av("assets/"+b+".mp3"));srcs.push(av("assets/"+b+".m4a"));}); var i=0; a.onerror=function(){i++;if(i<srcs.length)play(srcs[i]);else a.onerror=null;}; if(srcs.length)play(srcs[0]); }
   }
   function playBg(){ var b=document.getElementById("bg");if(!b)return;b.loop=true;b.volume=0.5;
     function play(src){b.src=src;var p=b.play();if(p&&p.catch)p.catch(function(){});}
@@ -920,6 +922,16 @@
     setTimeout(function(){var n=document.getElementById("cName");if(n&&!courseTmp.n)n.focus();},320);
   }
   function openName(){openSheet('<h3>你的名字</h3><p>会显示在首页问候语里。</p><input type="text" id="nin" maxlength="12" value="'+esc(profile.name||"")+'" placeholder="写下你的名字"><button class="sheet-act primary" id="nok">保存</button><button class="sheet-act" id="ncl" style="margin-top:10px">取消</button>');document.getElementById("ncl").onclick=closeSheet;document.getElementById("nok").onclick=function(){var v=(document.getElementById("nin").value||"").trim()||"朋友";profile.name=v;ls(K.pf,profile);closeSheet();renderHome();};setTimeout(function(){var n=document.getElementById("nin");if(n)n.focus();},320);}
+  function openCoursesExport(){
+    if(!customCourses.length){openSheet('<h3>导出课程配置</h3><p>你还没有自建课程。先在冥想页「添加自己的练习」建一个，再回来导出。</p><button class="sheet-act" id="ok">好</button>');document.getElementById("ok").onclick=closeSheet;return;}
+    var data=customCourses.map(function(c){return {id:c.id,n:c.n,cat:c.cat,min:(parseInt(((c.meta||"").match(/(\d+)/)||[])[1],10)||10),file:c.file||"",desc:c.desc||""};});
+    var txt=JSON.stringify(data,null,2);
+    var h='<h3>导出课程配置</h3><p>把下面这段存成 <code>courses.json</code>，放进仓库根目录（和 index.html 同级）并 Commit，这些课程就会出现在你所有设备上。</p><textarea id="cjson" style="min-height:160px;font-family:monospace;font-size:12px" readonly>'+esc(txt)+'</textarea><button class="sheet-act primary" id="cCopy">复制这段</button><button class="sheet-act" id="cDl">下载 courses.json</button><button class="sheet-act" id="cClose">关闭</button><div style="font-size:var(--t-small);color:var(--ink-faint);margin-top:6px;line-height:1.7">每个课程的音频/图片，按它的 file 名放进 assets/（如 file 是 sleep1，就放 sleep1.mp3、sleep1.png）。没填 file 的，用中文名命名也行。</div>';
+    openSheet(h);
+    document.getElementById("cClose").onclick=closeSheet;
+    document.getElementById("cCopy").onclick=function(){var ta=document.getElementById("cjson");ta.focus();ta.select();var ok=false;try{ok=document.execCommand("copy");}catch(e){}if(ok){alert("已复制。");}else if(navigator.clipboard){navigator.clipboard.writeText(txt).then(function(){alert("已复制。");}).catch(function(){alert("请长按文本框手动复制。");});}else{alert("请长按文本框手动复制。");}};
+    document.getElementById("cDl").onclick=function(){dl(new Blob([txt],{type:"application/json"}),"courses.json");};
+  }
   function openSettings(){
     var sw=ACCENTS.map(function(a){var on=(!profile.moodColor&&(profile.accent||"").toLowerCase()===a.c.toLowerCase());return '<div class="sw'+(on?' on':'')+(profile.moodColor?' dim':'')+'" data-c="'+a.c+'" style="background:'+a.c+'">'+(on?'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>':'')+'</div>';}).join('');
     var h='<h3>偏好设置</h3><p>所有记录存在本机。上传的音视频与图片另存，不在备份里。</p>'+
@@ -928,7 +940,7 @@
       '<div style="display:flex;gap:16px;margin:-2px 2px 8px"><button class="linkbtn" id="bgUp">更换背景音</button><button class="linkbtn" id="bgReset">恢复默认</button></div><div class="pdiv"></div>'+
       '<div class="prow" style="padding-bottom:6px"><span class="pic">'+ic("palette")+'</span><span class="plabel">主题颜色</span></div>'+
       '<div class="swrow" id="swRow">'+sw+'</div><button class="linkbtn" id="resetTheme">恢复默认</button><div class="pdiv" style="margin:8px 0"></div>'+
-      '<button class="sheet-act" id="bUpdate">检查更新（拉取最新版本）</button><button class="sheet-act" id="bName">修改名字</button><button class="sheet-act" id="bExport">导出完整备份</button><button class="sheet-act" id="bImport">从备份恢复</button><button class="sheet-act danger" id="bClear">清空情绪记录</button><input type="file" id="fi" accept="application/json" style="display:none">';
+      '<button class="sheet-act" id="bUpdate">检查更新（拉取最新版本）</button><button class="sheet-act" id="bName">修改名字</button><button class="sheet-act" id="bExport">导出完整备份</button><button class="sheet-act" id="bCourses">导出课程配置（给 GitHub）</button><button class="sheet-act" id="bImport">从备份恢复</button><button class="sheet-act danger" id="bClear">清空情绪记录</button><input type="file" id="fi" accept="application/json" style="display:none">';
     openSheet(h);
     var tg=document.getElementById("tgMood");
     tg.onclick=function(){profile.moodColor=!profile.moodColor;ls(K.pf,profile);applyTheme();openSettings();renderHome();};
@@ -940,6 +952,7 @@
     document.getElementById("bName").onclick=function(){closeSheet();setTimeout(openName,260);};
     document.getElementById("bUpdate").onclick=function(){location.href=location.pathname+"?v="+Date.now();};
     document.getElementById("bExport").onclick=function(){var blob=new Blob([JSON.stringify({entries:entries,custom:custom,med:med,courses:customCourses,moments:moments,profile:profile,tree:tree},null,2)],{type:"application/json"});dl(blob,"此刻备份_"+ymd(Date.now())+".json");};
+    document.getElementById("bCourses").onclick=function(){openCoursesExport();};
     var fi=document.getElementById("fi");document.getElementById("bImport").onclick=function(){fi.click();};
     fi.onchange=function(){var f=fi.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var d=JSON.parse(r.result);if(d&&Array.isArray(d.entries)){entries=d.entries;custom=d.custom||{};med=d.med||med;customCourses=d.courses||customCourses;moments=d.moments||moments;profile=d.profile||profile;tree=d.tree||tree;}ls(K.en,entries);ls(K.cu,custom);ls(K.me,med);ls(K.cc,customCourses);ls(K.mom,moments);ls(K.pf,profile);ls(K.tree,tree);applyTheme();renderHome();closeSheet();alert("恢复成功。图片/音视频需要重新上传。");}catch(e){alert("文件读不出来，确认是导出的备份吗？");}};r.readAsText(f);};
     document.getElementById("bClear").onclick=function(){if(confirm("清空全部情绪记录？无法撤销。")){entries=[];ls(K.en,entries);applyTheme();renderHome();closeSheet();}};
@@ -956,6 +969,7 @@
   applyTheme();
   renderHome();
   if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(function(){});
+  fetch(av("courses.json"),{cache:"no-store"}).then(function(r){return r.ok?r.json():[];}).then(function(arr){if(Array.isArray(arr)&&arr.length){repoCourses=arr.map(normRepoCourse);if(!document.getElementById("scr-meditate").classList.contains("hidden"))renderMeditate();}}).catch(function(){});
   if(idbOK){
     Object.keys(coveridx).forEach(function(id){ idbGet("cover_"+id).then(function(r){if(r)coverUrl[id]=URL.createObjectURL(r.blob);}).catch(function(){}); });
     Object.keys(momidx).forEach(function(id){ idbGet("moment_"+id).then(function(r){if(r){momentUrl[id]=URL.createObjectURL(r.blob);renderMoments();}}).catch(function(){}); });
