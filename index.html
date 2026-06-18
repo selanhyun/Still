@@ -71,7 +71,7 @@
   .itext{font-size:var(--t-btn);line-height:1.8;color:var(--ink);padding:6px 16px 0;}
   .mcard{flex:0 0 138px;scroll-snap-align:start;border:none;border-radius:16px;overflow:hidden;cursor:pointer;background:var(--surface);box-shadow:var(--shadow-soft);transition:transform .15s;padding:0;text-align:center;}
   .mcard:active{transform:scale(.96);}
-  .mcard .mimg{height:138px;background-size:cover;background-position:center;}
+  .mcard .mimg{aspect-ratio:1;height:auto;background-size:cover;background-position:center;}
   .mcard .mb{padding:11px 8px 13px;}
   .mcard .mn{font-size:var(--t-card);font-weight:600;}
   .mcard.add{display:flex;flex-direction:column;align-items:center;justify-content:center;border:1.5px dashed var(--line-strong);background:transparent;color:var(--sage-deep);min-height:182px;}
@@ -241,7 +241,7 @@
   .sw svg{width:20px;height:20px;}
   .sw.dim{opacity:.4;}
   .linkbtn{border:none;background:none;color:var(--ink-faint);font:inherit;font-size:var(--t-sub);cursor:pointer;padding:4px 2px;}
-  .reveal-scrim{position:fixed;inset:0;background:var(--paper);opacity:0;pointer-events:none;transition:opacity .35s;z-index:40;display:flex;align-items:center;justify-content:center;padding:30px;}
+  .reveal-scrim{position:fixed;inset:0;background:var(--paper);opacity:0;pointer-events:none;transition:opacity .35s;z-index:40;display:flex;align-items:center;justify-content:center;padding:24px;overflow-y:auto;}
   .reveal-scrim.on{opacity:1;pointer-events:auto;}
   .reveal-inner{width:100%;max-width:420px;display:flex;flex-direction:column;align-items:center;}
   .rcardbox{width:100%;border-radius:24px;padding:34px 28px 28px;position:relative;overflow:hidden;box-shadow:var(--shadow);}
@@ -252,6 +252,23 @@
   .rcardbox .cdate{font-size:var(--t-small);color:var(--ink-faint);margin-top:22px;}
   .rcardbox .cglow{position:absolute;width:170px;height:170px;border-radius:50%;right:-55px;top:-55px;filter:blur(10px);opacity:.5;}
   .reveal-done{margin-top:22px;border:none;background:none;color:var(--ink-soft);font:inherit;font-size:var(--t-card);letter-spacing:3px;cursor:pointer;padding:8px 30px;}
+  .advhint{margin-top:14px;}
+  .advhint summary{font-size:var(--t-small);color:var(--ink-faint);cursor:pointer;list-style:none;}
+  .advhint summary::-webkit-details-marker{display:none;}
+  .advhint summary::before{content:"\203A";display:inline-block;margin-right:6px;transition:transform .2s;}
+  .advhint[open] summary::before{transform:rotate(90deg);}
+  .advhint>div{font-size:var(--t-small);color:var(--ink-soft);line-height:1.7;margin-top:8px;padding-left:14px;}
+  .advhint code{background:var(--paper);border-radius:5px;padding:1px 6px;color:var(--sage-deep);}
+  .bgtog{border:1.5px solid var(--line-strong);background:var(--surface);border-radius:13px;padding:11px 22px;font:inherit;font-size:var(--t-sub);color:var(--ink-soft);cursor:pointer;display:inline-flex;align-items:center;gap:8px;}
+  .bgtog.on{border-color:var(--sage);color:var(--sage-deep);background:rgba(var(--accent-rgb),0.06);}
+  .addpractice{width:100%;border:1.5px dashed var(--line-strong);background:transparent;border-radius:15px;padding:14px;font:inherit;font-size:var(--t-card);color:var(--sage-deep);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px;}
+  .addpractice svg{width:17px;height:17px;}
+  .reward{margin-top:20px;width:100%;display:flex;flex-direction:column;align-items:center;}
+  .reward .rlabel{font-size:var(--t-sub);color:var(--ink-faint);letter-spacing:1px;margin-bottom:12px;}
+  .reward .rmcard{width:190px;border-radius:18px;overflow:hidden;background:var(--surface);box-shadow:var(--shadow);}
+  .reveal-scrim.on .reward .rmcard{animation:rise .85s cubic-bezier(.16,1,.3,1) both;}
+  .reward .rmimg{width:190px;height:190px;background-size:cover;background-position:center;}
+  .reward .rmname{padding:12px 8px;font-size:var(--t-card);font-weight:600;text-align:center;}
   @media (prefers-reduced-motion: reduce){*{animation-duration:.001s !important;transition-duration:.05s !important;}}
 </style>
 </head>
@@ -274,6 +291,7 @@
   </nav>
 </div>
 <audio id="aud" preload="none"></audio>
+<audio id="bg" loop preload="none"></audio>
 <div class="scrim" id="scrim"></div>
 <div class="sheet" id="sheet"></div>
 <div class="reveal-scrim" id="reveal"><div class="reveal-inner"><div id="revealCard"></div><button class="reveal-done" id="revealDone">完成</button></div></div>
@@ -408,14 +426,17 @@
   function backsvg(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>';}
   var CATICON={"呼吸练习":"wind","身体扫描":"body","正念觉察":"eye","助眠放松":"moon","感恩冥想":"heart","情绪疗愈":"lotus","专注力":"focus","晨间唤醒":"sun","晚间回顾":"evemoon","情绪急救":"first"};
   var MED_CATS=["呼吸练习","身体扫描","正念觉察","助眠放松","感恩冥想","情绪疗愈","专注力","晨间唤醒","晚间回顾"];
+  var CAT_COLORS={"呼吸练习":["#DEE9D7","#C4D7C7"],"身体扫描":["#D8DEE3","#C0CAD2"],"正念觉察":["#DCE6EC","#C4D5E0"],"助眠放松":["#D5DAE6","#BFC6DC"],"感恩冥想":["#EFDCDA","#E4C5C2"],"情绪疗愈":["#F1E2D2","#E8CFB6"],"专注力":["#D4E4DE","#BAD4C8"],"晨间唤醒":["#F2E6CE","#E8D6A8"],"晚间回顾":["#DAD6E6","#C4BEDC"],"情绪急救":["#E7E2D2","#D8CFB6"]};
 
-  var K={en:"cike_entries_v3",cu:"cike_custom_v3",me:"cike_med_v3",cc:"cike_courses_v3",cov:"cike_coveridx",med2:"cike_mediaidx",mom:"cike_moments_v1",momidx:"cike_momidx",pf:"cike_profile_v2",tree:"cike_tree_v1"};
+  var K={en:"cike_entries_v3",cu:"cike_custom_v3",me:"cike_med_v3",cc:"cike_courses_v3",cov:"cike_coveridx",med2:"cike_mediaidx",mom:"cike_moments_v1",momidx:"cike_momidx",pf:"cike_profile_v2",tree:"cike_tree_v1",bg:"cike_bgcustom"};
   var mem={},hasLS=false; try{var t="__t";localStorage.setItem(t,"1");localStorage.removeItem(t);hasLS=true;}catch(e){}
   function lg(k,d){ if(hasLS){try{return JSON.parse(localStorage.getItem(k)||d);}catch(e){return JSON.parse(d);}} return mem[k]!==undefined?mem[k]:JSON.parse(d); }
   function ls(k,v){ if(hasLS){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}} else mem[k]=v; }
   var entries=lg(K.en,"[]"),custom=lg(K.cu,"{}"),med=lg(K.me,'{"sessions":0,"minutes":0,"days":{},"plays":{}}');
   var customCourses=lg(K.cc,"[]"),coveridx=lg(K.cov,"{}"),mediaidx=lg(K.med2,"{}");
-  var moments=lg(K.mom,"[]"),momidx=lg(K.momidx,"{}"),profile=lg(K.pf,'{"name":"朋友","accent":"#7E9A85","moodColor":false}'),tree=lg(K.tree,'{"name":"小树"}');
+  var moments=lg(K.mom,"[]"),momidx=lg(K.momidx,"{}"),profile=lg(K.pf,'{"name":"朋友","accent":"#7E9A85","moodColor":false,"bgSound":true}'),tree=lg(K.tree,'{"name":"小树"}');
+  var bgCustom=lg(K.bg,"false");
+  if(profile.bgSound===undefined)profile.bgSound=true;
   var lastIdx={};
 
   var DB=null,idbOK=("indexedDB" in window),coverUrl={},momentUrl={};
@@ -594,6 +615,7 @@
     h+='<div class="stats"><div class="stat"><div class="num">'+med.sessions+'</div><div class="lbl">次练习</div></div><div class="stat"><div class="num">'+med.minutes+'</div><div class="lbl">分钟</div></div><div class="stat"><div class="num">'+Object.keys(med.days).length+'</div><div class="lbl">天</div></div></div>';
     h+='<div class="sec-h"><span class="st">为你推荐</span></div><div class="hscroll" id="medReco"></div>';
     h+='<div class="sec-h"><span class="st">课程分类</span></div><div class="catgrid" id="medCats"></div>';
+    h+='<button class="addpractice" id="addPractice">'+ic("first")+'添加自己的练习</button>';
     h+='<div class="sec-h"><span class="st">'+(medCat||"全部课程")+'</span>'+(medCat?'<span class="more" id="clr">显示全部</span>':'')+'</div><div id="medList"></div>';
     document.getElementById("medInner").innerHTML=h;
     var mr=document.getElementById("medReco"); ["sleep_deep","mind_breath","heal_self"].forEach(function(id){var it=itemById(id);if(it)mr.insertAdjacentHTML("beforeend",icard(it));});
@@ -606,6 +628,7 @@
     Array.prototype.forEach.call(document.querySelectorAll("#medCats [data-cat]"),function(el){el.onclick=function(){var k=el.getAttribute("data-cat");medCat=medCat===k?null:k;renderMeditate();};});
     var clr=document.getElementById("clr"); if(clr) clr.onclick=function(){medCat=null;renderMeditate();};
     Array.prototype.forEach.call(document.querySelectorAll("#medList [data-id]"),function(el){el.onclick=function(){openIntro(el.getAttribute("data-id"),"meditate");};});
+    var ap=document.getElementById("addPractice"); if(ap)ap.onclick=function(){openCourseEditor(null);};
   }
 
   function growthTree(n){
@@ -768,7 +791,7 @@
   function openCustom(qk){var q=quadByKey(qk);openSheet('<h3>给这个感受起个名字</h3><p>它会留在「'+q.name+'」里，下次还能直接选。</p><input type="text" id="cin" maxlength="6" placeholder="两到四个字，比如「踏实」"><button class="sheet-act primary" id="cok">添加并选择</button><button class="sheet-act" id="ccl" style="margin-top:10px">取消</button>');document.getElementById("ccl").onclick=closeSheet;document.getElementById("cok").onclick=function(){var v=(document.getElementById("cin").value||"").trim();if(!v)return;if(!custom[qk])custom[qk]=[];if(custom[qk].indexOf(v)===-1)custom[qk].unshift(v);ls(K.cu,custom);closeSheet();renderPick("subs");setTimeout(function(){openNote(qk,v);},280);};setTimeout(function(){var n=document.getElementById("cin");if(n)n.focus();},320);}
 
   var revealScrim=document.getElementById("reveal"),revealCard=document.getElementById("revealCard");
-  function reveal(e){var q=quadByKey(e.quad);revealCard.innerHTML='<div class="rcardbox" style="background:linear-gradient(150deg,'+q.c1+' 0%,'+q.c2+' 100%)"><div class="cglow" style="background:'+q.c1+'"></div><div class="ctag" style="color:'+q.accent+'">此刻 · '+esc(e.emotion)+'</div><div class="cmsg">'+esc(e.msg)+'</div><div class="cdate">'+fmtFull(e.ts)+'</div></div>';revealScrim.classList.add("on");}
+  function reveal(e){var q=quadByKey(e.quad);var rw="";if(moments.length){var pk=moments[Math.floor(Math.random()*moments.length)];var cov=momentUrl[pk.id]?"background-image:url('"+momentUrl[pk.id]+"')":"background-image:linear-gradient(150deg,"+((pk.color&&pk.color[0])||"#DEE6DC")+","+((pk.color&&pk.color[1])||"#C8D4CA")+")";rw='<div class="reward"><div class="rlabel">为你点亮一张时刻卡</div><div class="rmcard"><div class="rmimg" style="'+cov+'"></div><div class="rmname">'+esc(pk.name)+'</div></div></div>';}revealCard.innerHTML='<div class="rcardbox" style="background:linear-gradient(150deg,'+q.c1+' 0%,'+q.c2+' 100%)"><div class="cglow" style="background:'+q.c1+'"></div><div class="ctag" style="color:'+q.accent+'">此刻 · '+esc(e.emotion)+'</div><div class="cmsg">'+esc(e.msg)+'</div><div class="cdate">'+fmtFull(e.ts)+'</div></div>'+rw;revealScrim.classList.add("on");}
   document.getElementById("revealDone").onclick=function(){revealScrim.classList.remove("on");};
   revealScrim.onclick=function(ev){if(ev.target===revealScrim)revealScrim.classList.remove("on");};
 
@@ -788,19 +811,21 @@
   var introRoot="meditate";
   function openIntro(id,root){
     var it=itemById(id); if(!it) return; stopAudio(); introRoot=root||"meditate";
-    var up='<div class="uploads"><div class="uh">封面与音频：建议放进 GitHub 的 assets/ 文件夹（永久、跨设备）；也可以在这里临时上传（存本机）</div><div class="urow"><button class="ubtn'+(coverUrl[it.id]?' has':'')+'" id="upImg">'+ic("img")+(coverUrl[it.id]?'已换封面':'上传封面图')+'</button><button class="ubtn'+(mediaidx[it.id]==="audio"?' has':'')+'" id="upAud">'+ic("snd")+(mediaidx[it.id]==="audio"?'已换音频':'上传音频')+'</button>'+(it.type==="breath"?'<button class="ubtn'+(mediaidx[it.id]==="video"?' has':'')+'" id="upVid">'+ic("vid")+(mediaidx[it.id]==="video"?'已加视频':'上传视频')+'</button>':'')+'</div></div>';
+    var up='<div class="uploads"><div class="uh">封面和音频直接在这里上传就行，存在本机，不用改名字。</div><div class="urow"><button class="ubtn'+(coverUrl[it.id]?' has':'')+'" id="upImg">'+ic("img")+(coverUrl[it.id]?'已换封面':'上传封面图')+'</button><button class="ubtn'+(mediaidx[it.id]==="audio"?' has':'')+'" id="upAud">'+ic("snd")+(mediaidx[it.id]==="audio"?'已换音频':'上传音频')+'</button>'+(it.type==="breath"?'<button class="ubtn'+(mediaidx[it.id]==="video"?' has':'')+'" id="upVid">'+ic("vid")+(mediaidx[it.id]==="video"?'已加视频':'上传视频')+'</button>':'')+'</div>'+(it.id.charAt(0)==="u"?'<button class="sheet-act" id="editCourse" style="margin-top:14px;width:100%">编辑 / 删除这个练习</button>':'')+'<details class="advhint"><summary>想永久保存、换设备也不丢？（进阶）</summary><div>把文件命名成 <code>'+it.id+'.jpg</code>（封面）或 <code>'+it.id+'.mp3</code>（音频），放进仓库的 assets/ 文件夹就行。</div></details></div>';
     var h='<button class="back" id="ib">'+backsvg()+'返回</button><div class="hero" style="'+coverStyle(it)+'"></div><h1 class="ititle">'+it.n+'</h1><p class="imeta2">'+it.meta+'</p><div class="desc">'+it.desc+'</div>';
     if(it.type==="breath"||it.type==="guide"){ h+='<button class="startbtn" id="startBtn">开始练习</button>'+up; }
-    else { h+='<div class="center"><div class="pbar" id="pbar"><div class="pfl" id="pfl"></div></div><div class="ptm"><span id="ptc">0:00</span><span id="ptd">--:--</span></div><button class="pplay" id="play">'+svgPlay()+'</button></div>'+up; }
+    else { h+='<div class="center"><div class="pbar" id="pbar"><div class="pfl" id="pfl"></div></div><div class="ptm"><span id="ptc">0:00</span><span id="ptd">--:--</span></div><button class="pplay" id="play">'+svgPlay()+'</button><div style="margin-top:14px"><button class="bgtog'+(profile.bgSound?' on':'')+'" id="bgTog">背景音 · '+(profile.bgSound?'开':'关')+'</button></div></div>'+up; }
     document.getElementById("introInner").innerHTML=h; show("intro",introRoot);
     document.getElementById("ib").onclick=function(){stopAudio();backTo(introRoot);};
     bindUploads(it);
+    var ec=document.getElementById("editCourse"); if(ec)ec.onclick=function(){openCourseEditor(it.id);};
     if(it.type==="breath"||it.type==="guide"){ document.getElementById("startBtn").onclick=function(){openRun(it);}; }
     else { var aud=document.getElementById("aud"),play=document.getElementById("play");
-      play.onclick=function(){if(aud.paused){resolveAudio(it,aud,false);countSession(it);play.innerHTML=svgPause();}else{aud.pause();play.innerHTML=svgPlay();}};
+      play.onclick=function(){if(aud.paused){resolveMain(it);if(profile.bgSound)playBg();countSession(it);play.innerHTML=svgPause();}else{aud.pause();stopBg();play.innerHTML=svgPlay();}};
       aud.ontimeupdate=function(){if(!aud.duration||!isFinite(aud.duration))return;document.getElementById("pfl").style.width=(aud.currentTime/aud.duration*100)+"%";document.getElementById("ptc").textContent=fmtSec(aud.currentTime);document.getElementById("ptd").textContent=fmtSec(aud.duration);};
-      aud.onended=function(){play.innerHTML=svgPlay();};
+      aud.onended=function(){play.innerHTML=svgPlay();stopBg();};
       var pb=document.getElementById("pbar");pb.onclick=function(ev){var r=pb.getBoundingClientRect();if(aud.duration&&isFinite(aud.duration))aud.currentTime=(ev.clientX-r.left)/r.width*aud.duration;};
+      var bgT=document.getElementById("bgTog"); if(bgT)bgT.onclick=function(){profile.bgSound=!profile.bgSound;ls(K.pf,profile);bgT.className="bgtog"+(profile.bgSound?" on":"");bgT.textContent="背景音 · "+(profile.bgSound?"开":"关");if(!aud.paused){if(profile.bgSound)playBg();else stopBg();}};
     }
   }
   function backTo(root){ if(root==="home"){renderHome();show("home","home");}else if(root==="courses"){renderCourses();show("courses","courses");}else{renderMeditate();show("meditate","meditate");} }
@@ -810,20 +835,26 @@
     var uv=document.getElementById("upVid");if(uv)uv.onclick=function(){pickFile("video/*",function(f){idbPut("media_"+it.id,f,"video").then(function(){mediaidx[it.id]="video";ls(K.med2,mediaidx);openIntro(it.id,introRoot);}).catch(function(){alert("保存失败：文件可能太大。");});});};
   }
   function pickFile(accept,cb){var i=document.createElement("input");i.type="file";i.accept=accept;i.onchange=function(){if(i.files&&i.files[0])cb(i.files[0]);};i.click();}
-  function resolveAudio(it,aud,loop){
-    aud.loop=!!loop;
-    function play(src){aud.src=src;var p=aud.play();if(p&&p.catch)p.catch(function(){});}
-    if(mediaidx[it.id]==="audio"){ idbGet("media_"+it.id).then(function(r){if(r){play(URL.createObjectURL(r.blob));}else fb();}).catch(fb); }
-    else fb();
-    function fb(){ var srcs=["assets/"+it.id+".mp3",DEF_AUDIO],i=1;aud.onerror=function(){if(i<srcs.length)play(srcs[i++]);};play(srcs[0]); }
+  function resolveMain(it){
+    var a=document.getElementById("aud");a.loop=false;a.volume=1;a.onerror=null;
+    function play(src){a.src=src;var p=a.play();if(p&&p.catch)p.catch(function(){});}
+    if(mediaidx[it.id]==="audio"){ idbGet("media_"+it.id).then(function(r){if(r){play(URL.createObjectURL(r.blob));}else tryA();}).catch(tryA); }
+    else tryA();
+    function tryA(){ a.onerror=function(){a.onerror=null;}; play("assets/"+it.id+".mp3"); }
   }
-  function stopAudio(){try{var a=document.getElementById("aud");a.pause();a.loop=false;a.onerror=null;a.ontimeupdate=null;a.onended=null;}catch(e){}}
+  function playBg(){ var b=document.getElementById("bg");if(!b)return;b.loop=true;b.volume=0.5;
+    function play(src){b.src=src;var p=b.play();if(p&&p.catch)p.catch(function(){});}
+    if(bgCustom){ idbGet("bg_custom").then(function(r){play(r?URL.createObjectURL(r.blob):DEF_AUDIO);}).catch(function(){play(DEF_AUDIO);}); }
+    else play(DEF_AUDIO);
+  }
+  function stopBg(){try{var b=document.getElementById("bg");if(b)b.pause();}catch(e){}}
+  function stopAudio(){try{var a=document.getElementById("aud");a.pause();a.loop=false;a.onerror=null;a.ontimeupdate=null;a.onended=null;}catch(e){}stopBg();}
 
   var timer=null;
   function openRun(it){
     var hasVideo=mediaidx[it.id]==="video",inner="";
     if(it.type==="guide"){
-      inner='<div class="run"><div style="font-size:18px;line-height:2.2;color:var(--ink);margin-bottom:10px" id="gsteps"></div><div class="rcount" id="rcount" style="font-size:30px"></div><div class="rcycle" id="rcycle"></div><button class="rstop" id="stopBtn">开始</button></div>';
+      inner='<div class="run"><div style="font-size:18px;line-height:2.2;color:var(--ink);margin-bottom:10px" id="gsteps"></div><div class="rcount" id="rcount" style="font-size:30px"></div><div class="rcycle" id="rcycle"></div><button class="rstop" id="stopBtn">开始</button><div style="margin-top:14px"><button class="bgtog'+(profile.bgSound?' on':'')+'" id="bgTogR">背景音 · '+(profile.bgSound?'开':'关')+'</button></div></div>';
     } else {
       var visual=hasVideo?'<video class="rvideo" id="rvid" playsinline muted loop></video>':'<div class="stage"><div class="ring2" id="ring2"></div><div class="ring" id="ring"></div><div class="rcenter"><div class="rphase" id="rphase">准备好了吗</div><div class="rcount" id="rcount">'+it.pattern[0].s+'</div></div></div>';
       inner='<div class="run">'+visual+(hasVideo?'<div class="rphase" id="rphase">准备好了吗</div><div class="rcount" id="rcount">'+it.pattern[0].s+'</div>':'')+'<div class="rcycle" id="rcycle"></div><button class="rstop" id="stopBtn">开始</button></div>';
@@ -834,8 +865,9 @@
     if(hasVideo){var rv=document.getElementById("rvid");idbGet("media_"+it.id).then(function(r){if(r)rv.src=URL.createObjectURL(r.blob);});}
     var running=false,btn=document.getElementById("stopBtn");
     btn.onclick=function(){ if(running){running=false;stopRun();btn.textContent="开始";stopAudio();var rv=document.getElementById("rvid");if(rv)rv.pause();}
-      else{running=true;btn.textContent="结束";countSession(it);resolveAudio(it,document.getElementById("aud"),true);var rv=document.getElementById("rvid");if(rv)rv.play();
+      else{running=true;btn.textContent="结束";countSession(it);if(profile.bgSound)playBg();var rv=document.getElementById("rvid");if(rv)rv.play();
         if(it.type==="guide")runGuide(it,0,0);else{if(!hasVideo)setRing(.62,0);enterPhase(it,0,0);}} };
+    var bgR=document.getElementById("bgTogR"); if(bgR)bgR.onclick=function(){profile.bgSound=!profile.bgSound;ls(K.pf,profile);bgR.className="bgtog"+(profile.bgSound?" on":"");bgR.textContent="背景音 · "+(profile.bgSound?"开":"关");if(running){if(profile.bgSound)playBg();else stopBg();}};
     if(it.type!=="guide"&&!hasVideo)setRing(.62,0);
   }
   function setRing(sc,d){var r=document.getElementById("ring"),r2=document.getElementById("ring2");if(!r)return;r.style.transitionDuration=d+"s";r2.style.transitionDuration=d+"s";r.style.transform="scale("+sc+")";r2.style.transform="scale("+(sc+0.06)+")";}
@@ -845,17 +877,56 @@
   var sessionLock={};
   function countSession(it){var lk=it.id+"_"+Math.floor(Date.now()/60000);if(sessionLock[lk])return;sessionLock[lk]=true;med.sessions+=1;var mm=(it.meta||"").match(/(\d+)\s*分钟/);med.minutes+=mm?parseInt(mm[1],10):0;med.days[dkey(Date.now())]=true;med.plays[it.id]=(med.plays[it.id]||0)+1;ls(K.me,med);}
 
+  var courseTmp={};
+  function openCourseEditor(id){
+    var it=id?customCourses.filter(function(x){return x.id===id;})[0]:null;
+    courseTmp={id:id||("u"+Date.now()),n:it?it.n:"",cat:it?it.cat:"呼吸练习",min:it?(parseInt(((it.meta||"").match(/(\d+)/)||[])[1],10)||10):10,desc:it?it.desc:""};
+    drawCourseEditor(!!id);
+  }
+  function drawCourseEditor(isEdit){
+    var catChips=MED_CATS.map(function(c){return '<button data-cat="'+c+'"'+(courseTmp.cat===c?' class="on"':'')+'>'+c+'</button>';}).join('');
+    var minChips=[3,5,10,15,20].map(function(m){return '<button data-min="'+m+'"'+(courseTmp.min===m?' class="on"':'')+'>'+m+' 分钟</button>';}).join('');
+    var h='<h3>'+(isEdit?'编辑练习':'添加练习')+'</h3><p>建一个自己的练习，保存后进它的页面上传音频就能用。</p>'+
+      '<div class="fld">名字</div><input type="text" id="cName" maxlength="14" value="'+esc(courseTmp.n)+'" placeholder="比如「睡前白噪音」">'+
+      '<div class="fld">分类标签</div><div class="tchips" id="cCat">'+catChips+'</div>'+
+      '<div class="fld">时长</div><div class="tchips" id="cMin">'+minChips+'</div>'+
+      '<div class="fld">简介（可不填）</div><textarea id="cDesc" placeholder="这个练习是关于什么的">'+esc(courseTmp.desc)+'</textarea>'+
+      '<button class="sheet-act primary" id="cSave" style="margin-top:16px">保存</button>'+
+      (isEdit?'<button class="sheet-act danger" id="cDel">删除这个练习</button>':'')+
+      '<button class="sheet-act" id="cCancel">取消</button>';
+    openSheet(h);
+    Array.prototype.forEach.call(document.querySelectorAll("#cCat button"),function(b){b.onclick=function(){courseTmp.cat=b.getAttribute("data-cat");Array.prototype.forEach.call(document.querySelectorAll("#cCat button"),function(x){x.classList.remove("on");});b.classList.add("on");};});
+    Array.prototype.forEach.call(document.querySelectorAll("#cMin button"),function(b){b.onclick=function(){courseTmp.min=parseInt(b.getAttribute("data-min"),10);Array.prototype.forEach.call(document.querySelectorAll("#cMin button"),function(x){x.classList.remove("on");});b.classList.add("on");};});
+    document.getElementById("cCancel").onclick=closeSheet;
+    document.getElementById("cSave").onclick=function(){
+      var nm=(document.getElementById("cName").value||"").trim();if(!nm){alert("起个名字吧");return;}
+      var col=CAT_COLORS[courseTmp.cat]||["#DDE9D5","#C6D9C9"];
+      var ex=customCourses.filter(function(x){return x.id===courseTmp.id;})[0];
+      var dsc=(document.getElementById("cDesc").value||"").trim()||"你自己添加的练习。";
+      var meta=courseTmp.min+" 分钟 · "+courseTmp.cat;
+      if(ex){ex.n=nm;ex.cat=courseTmp.cat;ex.meta=meta;ex.desc=dsc;ex.c1=col[0];ex.c2=col[1];}
+      else{customCourses.push({id:courseTmp.id,n:nm,type:"audio",cat:courseTmp.cat,meta:meta,c1:col[0],c2:col[1],desc:dsc});}
+      ls(K.cc,customCourses);closeSheet();medCat=courseTmp.cat;renderMeditate();show("meditate","meditate");
+    };
+    var cd=document.getElementById("cDel");if(cd)cd.onclick=function(){if(confirm("删除这个练习？")){customCourses=customCourses.filter(function(x){return x.id!==courseTmp.id;});ls(K.cc,customCourses);idbDel("cover_"+courseTmp.id);idbDel("media_"+courseTmp.id);delete coverUrl[courseTmp.id];delete coveridx[courseTmp.id];delete mediaidx[courseTmp.id];ls(K.cov,coveridx);ls(K.med2,mediaidx);closeSheet();medCat=null;renderMeditate();show("meditate","meditate");}};
+    setTimeout(function(){var n=document.getElementById("cName");if(n&&!courseTmp.n)n.focus();},320);
+  }
   function openName(){openSheet('<h3>你的名字</h3><p>会显示在首页问候语里。</p><input type="text" id="nin" maxlength="12" value="'+esc(profile.name||"")+'" placeholder="写下你的名字"><button class="sheet-act primary" id="nok">保存</button><button class="sheet-act" id="ncl" style="margin-top:10px">取消</button>');document.getElementById("ncl").onclick=closeSheet;document.getElementById("nok").onclick=function(){var v=(document.getElementById("nin").value||"").trim()||"朋友";profile.name=v;ls(K.pf,profile);closeSheet();renderHome();};setTimeout(function(){var n=document.getElementById("nin");if(n)n.focus();},320);}
   function openSettings(){
     var sw=ACCENTS.map(function(a){var on=(!profile.moodColor&&(profile.accent||"").toLowerCase()===a.c.toLowerCase());return '<div class="sw'+(on?' on':'')+(profile.moodColor?' dim':'')+'" data-c="'+a.c+'" style="background:'+a.c+'">'+(on?'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>':'')+'</div>';}).join('');
     var h='<h3>偏好设置</h3><p>所有记录存在本机。上传的音视频与图片另存，不在备份里。</p>'+
       '<div class="prow"><span class="pic">'+ic("palette")+'</span><span class="plabel">心情变色</span><div class="tg'+(profile.moodColor?' on':'')+'" id="tgMood"></div></div><div class="pdiv"></div>'+
+      '<div class="prow"><span class="pic">'+ic("snd")+'</span><span class="plabel">背景音（海浪）</span><div class="tg'+(profile.bgSound?' on':'')+'" id="tgBg"></div></div>'+
+      '<div style="display:flex;gap:16px;margin:-2px 2px 8px"><button class="linkbtn" id="bgUp">更换背景音</button><button class="linkbtn" id="bgReset">恢复默认</button></div><div class="pdiv"></div>'+
       '<div class="prow" style="padding-bottom:6px"><span class="pic">'+ic("palette")+'</span><span class="plabel">主题颜色</span></div>'+
       '<div class="swrow" id="swRow">'+sw+'</div><button class="linkbtn" id="resetTheme">恢复默认</button><div class="pdiv" style="margin:8px 0"></div>'+
       '<button class="sheet-act" id="bName">修改名字</button><button class="sheet-act" id="bExport">导出完整备份</button><button class="sheet-act" id="bImport">从备份恢复</button><button class="sheet-act danger" id="bClear">清空情绪记录</button><input type="file" id="fi" accept="application/json" style="display:none">';
     openSheet(h);
     var tg=document.getElementById("tgMood");
     tg.onclick=function(){profile.moodColor=!profile.moodColor;ls(K.pf,profile);applyTheme();openSettings();renderHome();};
+    var tgb=document.getElementById("tgBg"); if(tgb)tgb.onclick=function(){profile.bgSound=!profile.bgSound;ls(K.pf,profile);openSettings();};
+    document.getElementById("bgUp").onclick=function(){pickFile("audio/*",function(f){idbPut("bg_custom",f,"bg").then(function(){bgCustom=true;ls(K.bg,true);alert("背景音已更换。");}).catch(function(){alert("保存失败：文件可能太大。");});});};
+    document.getElementById("bgReset").onclick=function(){bgCustom=false;ls(K.bg,false);idbDel("bg_custom");alert("已恢复默认海浪声。");};
     Array.prototype.forEach.call(document.querySelectorAll("#swRow .sw"),function(el){el.onclick=function(){profile.moodColor=false;profile.accent=el.getAttribute("data-c");ls(K.pf,profile);applyTheme();openSettings();renderHome();};});
     document.getElementById("resetTheme").onclick=function(){profile.moodColor=false;profile.accent=DEF_ACCENT;ls(K.pf,profile);applyTheme();openSettings();renderHome();};
     document.getElementById("bName").onclick=function(){closeSheet();setTimeout(openName,260);};
